@@ -7,54 +7,49 @@ from modbus_core.modbus_rtu import ModbusRTU
 
 def main():
     
-    sm = SerialManager()
+        sm = SerialManager()
+        serial_config = SerialConfig()
 
-    serial_config = SerialConfig()
-    
+        try:
+            active_ports = sm.scan_serial_ports()
+            default_port = sm.get_default_port()
 
-    active_ports = sm.scan_serial_ports()
+            serial_config.port = default_port
 
-    default_port = sm.get_default_port()
+            connect_to_port = sm.connect(serial_config)
+            is_connected = sm.is_connected()
 
-    serial_config.port = sm.get_default_port() 
+            print(f"Список активных портов: {active_ports}")
+            print(f"Выбор первого порта из списка {default_port}")
+            print(f"Подключение порта: {connect_to_port}")
+            print(f"Проверка подключения: {is_connected}")
 
-    connect_to_port = sm.connect(serial_config) 
-    is_connected = sm.is_connected()
+            if is_connected:
+                modbus = ModbusRTU(sm.serial_port)
 
+                response = modbus.write_single_register(
+                    slave_id=17,
+                    address=8,
+                    value=1
+                )
 
+                print(f"Отправка сообщения: {response}")
 
-    print(f"Список активных портов: {active_ports}")
-    print(f"Выбор первого порта из списка {default_port}")
-    print(f"Подключение порта: {connect_to_port}")
-    print(f"Провекра подключения:{is_connected}")
+                read = modbus.read_holding_registers(
+                    slave_id=17,
+                    address=8,
+                    count=3
+                )
 
-    if is_connected:
-        modbus = ModbusRTU(sm.serial_port)
+                parsed = modbus.parse_read_holding_registers_response(read)
 
+                print(read.hex())
+                print(f"Считывание ответа: {parsed}")
 
-        response = modbus.write_single_register(
-            slave_id=33,
-            address=8,
-            value=1
-        )
-
-        print(f"Отправка сообщения: {response}")
-
-        read = modbus.read_holding_registers(
-            slave_id=33,
-            address=8,
-            count=1
-        )
-
-        parsed = modbus.parse_read_holding_registers_response(read)
-
-
-        print(read)
-        print(read.hex())
-        print(len(read))
-
-        print(f"Считывание ответа:{parsed}")
-
+        finally:
+            print("Отключение от порта...")
+            sm.disconnect()
+            print("Отключение завершено.")
 
 if __name__ == "__main__":
 
