@@ -3,7 +3,7 @@
 from gui.main_window.ui_gen.main_window_design import Ui_MainWindow
 from PySide6.QtWidgets import QMainWindow, QApplication
 from utils.style_loader import load_stylesheet
-from serial_core.serial_manage import connect
+
 
 class MainWindow(QMainWindow):
 
@@ -14,13 +14,6 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.setStyleSheet(load_stylesheet())
-
-    def connect_button(self):
-        return self.connect()
-    
-    def disconnect_button(self):
-        return self.disconnect()
-
          
 
 

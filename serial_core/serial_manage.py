@@ -1,14 +1,30 @@
 import serial
-
+import serial.tools.list_ports
 
 class SerialManager:
 
     def __init__(self) -> None:
-        self.serial = None
+        self.serial_port = None
+
+
+    @staticmethod
+    def scan_serial_ports() -> list:
+
+        ports: list = serial.tools.list_ports.comports()
+
+        return [port.device for port in ports]
+    
+    @staticmethod
+    def get_default_port() -> str | None:
+
+        ports = SerialManager.scan_serial_ports()
+
+        return ports[0] if ports else None
+    
 
     def connect(self, config) -> bool:
         try:
-            self.serial = serial.Serial(
+            self.serial_port = serial.Serial(
                 port=config.port,
                 baudrate=config.baudrate,
                 bytesize=config.byte_size,
@@ -19,71 +35,29 @@ class SerialManager:
             return True
 
         except serial.SerialException as e:
-            self.serial = None
+            self.serial_port = None
             print(f"[ERROR] Connect failed: {e}")
             return False
 
         except Exception as e:
-            self.serial = None
+            self.serial_port = None
             print(f"[ERROR] Unexpected error on connect: {e}")
             return False
 
-    def disconnect(self) -> None:
+    def disconnect(self) -> bool:
         try:
-            if self.serial and self.serial.is_open:
-                self.serial.close()
+            if self.serial_port and self.serial_port.is_open:
+                self.serial_port.close()
+            
+            self.serial_port = None
+            return True
+        
         except serial.SerialException as e:
             print(f"[ERROR] Disconnect failed: {e}")
-        finally:
-            self.serial = None
-
-    def send(self, data: bytes) -> bool:
-        try:
-            if self.serial and self.serial.is_open:
-                self.serial.write(data)
-                return True
-            return False
-
-        except serial.SerialException as e:
-            print(f"[ERROR] Send failed: {e}")
-            return False
-
-        except Exception as e:
-            print(f"[ERROR] Unexpected send error: {e}")
-            return False
-
-    def read(self, size: int) -> bytes:
-        try:
-            if self.serial and self.serial.is_open:
-                return self.serial.read(size)
-            return b""
-
-        except serial.SerialException as e:
-            print(f"[ERROR] Read failed: {e}")
-            return b""
-
-    def read_all(self) -> bytes:
-        try:
-            if self.serial and self.serial.is_open:
-                return self.serial.read_all()
-            return b""
-
-        except serial.SerialException as e:
-            print(f"[ERROR] Read_all failed: {e}")
-            return b""
 
     def is_connected(self) -> bool:
-        try:
-            return self.serial is not None and self.serial.is_open
-        except Exception:
-            return False
+        return  self.serial_port  is not None and self.serial_port.is_open
 
-    def clear_buffers(self) -> None:
-        try:
-            if self.serial and self.serial.is_open:
-                self.serial.reset_input_buffer()
-                self.serial.reset_output_buffer()
-        except serial.SerialException as e:
-            print(f"[ERROR] Clear buffers failed: {e}")
+
 
 

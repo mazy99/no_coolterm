@@ -1,8 +1,14 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from serial_core.serial_manage import SerialManager
+
+
 
 @dataclass
 class SerialConfig:
-    port: str = 'COM1'
+
+    sm: SerialManager = field(default_factory=SerialManager)
+
+    port: str | None = field(default=None)
 
     baudrate: int = 9600
 
@@ -13,3 +19,4 @@ class SerialConfig:
     stopbits: int = 1
 
     timeout: float = 1.0
+
