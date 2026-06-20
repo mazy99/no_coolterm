@@ -52,10 +52,10 @@ class ModbusRTU:
     # VALIDATION
     # =========================
     def _check_crc(self, response: bytes) -> None:
-        if len(response) < 8: #  что эта цифра? 
+        if len(response) < 4: #  что эта цифра? 
             raise ValueError("Modbus: response too short")
 
-        data = response[:-2]
+        data = response[:-2]  
         recv_crc = response[-2:]
         calc_crc = self.crc16(data).to_bytes(2, byteorder="little")
 
@@ -65,39 +65,20 @@ class ModbusRTU:
     # =========================
     # PARSERS
     # =========================
-    def _parse_read_holding_registers(self, response: bytes) -> dict:
+    def _parse_read_holding_registers(self, response: bytes) -> hex:
         self._check_crc(response)
 
-        byte_count = response[2]
-        data = response[3:3 + byte_count]
+        return response.hex(sep=' ')
 
-        registers = [
-            int.from_bytes(data[i:i+2], byteorder="big")
-            for i in range(0, len(data), 2)
-        ]
-
-        return {
-            "slave_id": response[0],
-            "function": response[1],
-            "registers": registers,
-            "crc": response[-2:],
-        }
-
-    def _parse_write_single_register(self, response: bytes) -> dict:
+    def _parse_write_single_register(self, response: bytes) -> hex:
         self._check_crc(response)
 
-        return {
-            "slave_id": response[0],
-            "function": response[1],
-            "address": int.from_bytes(response[2:4], byteorder="big"),
-            "value": int.from_bytes(response[4:6], byteorder="big"),
-            "crc": response[-2:],
-        }
-
+        return response.hex(sep=' ')
+    
     # =========================
     # PUBLIC API
     # =========================
-    def read_holding_registers(self, slave_id: int, address: int, count: int):
+    def read_holding_registers(self, slave_id: int, address: int, count: int) -> dict:
         payload = bytearray()
         payload += address.to_bytes(2, byteorder="big")
         payload += count.to_bytes(2, byteorder="big")
@@ -107,7 +88,7 @@ class ModbusRTU:
 
         return self._parse_read_holding_registers(response)
 
-    def write_single_register(self, slave_id: int, address: int, value: int):
+    def write_single_register(self, slave_id: int, address: int, value: int) -> dict:
         payload = bytearray()
         payload += address.to_bytes(2, byteorder="big")
         payload += value.to_bytes(2, byteorder="big")
