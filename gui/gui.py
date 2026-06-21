@@ -5,6 +5,7 @@ from PyQt6.QtGui import QFont, QIntValidator, QRegularExpressionValidator
 
 from modbus_core.modbus_controller import ModbusController 
 from utils.style_loader import load_stylesheet
+from gui.modbus_table import   DEVICE_MAPS
 
 
 
@@ -262,9 +263,12 @@ class ModbusTerminal(QMainWindow):
         self.send_btn.setEnabled(False)
         main_layout.addWidget(self.send_btn)
         
+
+
         # Журнал событий
-        log_frame = QFrame()
+        log_frame = QScrollArea()
         log_frame.setObjectName("logFrame")
+
         log_layout = QVBoxLayout(log_frame)
         log_layout.setContentsMargins(20, 15, 20, 15)
         
@@ -491,6 +495,60 @@ class ModbusTerminal(QMainWindow):
         self.status_indicator.setStyleSheet("border-radius: 6px; background-color: #9CA3AF;")
         self.log("Отключено")
     
+    def format_registers_to_ascii_table(self, slave_id: int, start_address: int, registers: list) -> str:
+        """Форматирует прочитанные регистры в красивую текстовую ASCII-таблицу с масштабом"""
+
+        if slave_id not in DEVICE_MAPS:
+            return ""
+        lines = []
+        current_map = DEVICE_MAPS.get(slave_id, {})
+        # Шапка таблицы с фиксированной шириной столбцов (с учетом новой колонки Масштаб)
+        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
+        lines.append(f"| {'Адрес':<6} | {'Параметр':<53} | {'Физическое знач':<15} | {'Масштаб':<7} | {'HEX':<8} |")
+        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
+        
+        has_data = False
+        
+        # Цикл идет строго по полученному массиву регистров (динамический размер: 1, 5, 10 и т.д.)
+        for offset, val in enumerate(registers):
+            current_addr = start_address + offset
+            
+            # Проверяем, описан ли этот регистр в карте МКБ4
+            if current_addr in current_map:
+                has_data = True
+                info = current_map[current_addr]
+
+                # Обработка знака (signed short, 16 бит)
+                raw_val = val
+                if info["знак"] and raw_val > 0x7FFF:
+                    raw_val -= 0x10000
+                
+                # Ключ "Масштаб"
+                scale= info["Масштаб"]
+                phys_val = raw_val / scale
+                phys_str = f"{phys_val:.2f}" if scale > 1 else f"{int(phys_val)}"
+                scale_str = str(scale)
+                
+                addr_str = f"0x{current_addr:04X}"
+                hex_str = f"0x{val:04X}"
+                name_str = info["Параметр"]
+            else:
+                # Если запросили регистр, которого нет в карте параметров
+                has_data = True
+                addr_str = f"0x{current_addr:04X}"
+                hex_str = f"0x{val:04X}"
+                phys_str = f"{val}"  # выводим просто как DEC число
+                scale_str = "1"
+                name_str = f"Регистр {current_addr} (Вне карты параметров)"
+
+            # Формируем строку таблицы с выравниванием (добавлена колонка scale_str)
+            lines.append(f"| {addr_str:<6} | {name_str:<53} | {phys_str:>15} | {scale_str:>7} | {hex_str:<8} |")
+        
+        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
+        
+        # Возвращаем готовую таблицу, если в ней есть хоть одна строчка данных
+        return "\n".join(lines) if has_data else ""
+    
     def on_send(self):
         if not self.modbus_engine.is_connected():
             self.log("Ошибка: нет подключения")
@@ -509,9 +567,53 @@ class ModbusTerminal(QMainWindow):
 
             try:
                 result = self.modbus_engine.read_holding_registers(slave_id, address, count)
+                
+                registers = []
 
+                # КОРРЕКЦИЯ: Если ответ пришел в виде HEX-строки, переводим ее в байты
+                if isinstance(result, str):
+                    # Убираем пробелы, если они есть в строке ответа
+                    clean_result = result.replace(" ", "")
+                    try:
+                        result = bytes.fromhex(clean_result)
+                    except ValueError:
+                        pass # Если это была не HEX строка, оставим как есть
 
-                self.log(f"Получены регистры: {result}")
+                # ВАРИАНТ 1: Если это байты (или успешно преобразованная строка)
+                if isinstance(result, (bytes, bytearray)):
+                    self.log(f"Результат чтения: {result.hex(sep=' ').upper()}")
+                    
+                    if len(result) >= 5:
+                        data_bytes = result[3:-2] # Отрезаем заголовок (3 байта) и CRC (2 байта)
+                        
+                        # Превращаем пары байт в 16-битные регистры
+                        for i in range(0, len(data_bytes), 2):
+                            if i + 1 < len(data_bytes):
+                                reg_val = int.from_bytes(data_bytes[i:i+2], byteorder='big')
+                                registers.append(reg_val)
+                    else:
+                        self.log("Ошибка: Слишком короткий пакет ответа")
+
+                # ВАРИАНТ 2: Если движок вернул словарь
+                elif isinstance(result, dict):
+                    registers = result.get("registers", [])
+                    self.log(f"Получены регистры из словаря: {registers}")
+                
+                else:
+                    self.log(f"Неизвестный формат ответа: {result}")
+
+                # ВЫВОД ТАБЛИЦЫ (Сработает динамически для любого количества параметров: от 1 до 28)
+                if registers:
+                    # Ограничиваем количество выводимых регистров тем, сколько реально запросили,
+                    # чтобы не выйти за рамки массива, если устройство прислало чуть больше байт
+                    registers = registers[:count]
+                    
+                    ascii_table = self.format_registers_to_ascii_table(slave_id, address, registers)
+                    if ascii_table:
+                        self.log_text.append(f"<pre style='color: #000000;'>{ascii_table}</pre>")
+                        self.log_text.ensureCursorVisible()
+                else:
+                    self.log("Не удалось выделить регистры для отображения таблицы")
 
             except Exception as e:
                 self.log(f"Ошибка чтения: {e}")
@@ -523,7 +625,7 @@ class ModbusTerminal(QMainWindow):
 
             try:
                 response = self.modbus_engine.write_single_register(slave_id, address, value)
-                self.log(f"Ответ: {response}")
+                self.log(f"Ответ: {response.hex(sep='')}")
 
             except Exception as e:
                 self.log(f"Ошибка записи: {e}")
