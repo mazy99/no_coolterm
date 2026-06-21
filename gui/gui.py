@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRegularExpression
 from PyQt6.QtGui import QFont, QIntValidator, QRegularExpressionValidator
@@ -266,7 +267,7 @@ class ModbusTerminal(QMainWindow):
 
 
         # Журнал событий
-        log_frame = QScrollArea()
+        log_frame = QWidget()
         log_frame.setObjectName("logFrame")
 
         log_layout = QVBoxLayout(log_frame)
@@ -635,7 +636,6 @@ class ModbusTerminal(QMainWindow):
         self.log("Журнал очищен")
     
     def log(self, msg):
-        from datetime import datetime
         self.log_text.append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
     
     def apply_styles(self):
