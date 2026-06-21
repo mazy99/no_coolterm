@@ -112,4 +112,4 @@ class ModbusController:
         crc = ModbusRTU.crc16(request)
         request += crc.to_bytes(2, byteorder="little")
 
-        return request.hex(sep=' ')
+        return request.hex(sep=' ').upper()
