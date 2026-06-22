@@ -146,7 +146,7 @@ class ModbusTerminal(QMainWindow):
         addr_container = QWidget()
         addr_container_layout = QHBoxLayout(addr_container)
         addr_container_layout.setContentsMargins(0, 0, 0, 0)
-        addr_label = QLabel("Адрес устройства")
+        addr_label = QLabel("Адрес устройства (hex)")
         addr_label.setMinimumWidth(150)
         addr_container_layout.addWidget(addr_label)
         
@@ -162,8 +162,13 @@ class ModbusTerminal(QMainWindow):
                         dev_name = param_text.split("Состояние ")[1].split("(")[0].strip()
                     except:
                         pass
-            # Добавляем строку, но связываем с ней числовой ID устройства через userData
-            self.device_addr.addItem(f"{dev_id} ({dev_name})", dev_id)
+            
+            # Форматируем числовой ID в шестнадцатеричный вид (например, 10 -> 0x0A)
+            # :02X делает буквы заглавными и дополняет нулем до 2 символов (0x01, 0x0A и т.д.)
+            hex_id = f"{dev_id:02X}" 
+            
+            # Добавляем HEX-строку для отображения, но связываем с ней исходный числовой ID через userData
+            self.device_addr.addItem(f"{hex_id} ({dev_name})", dev_id)
             
         addr_container_layout.addWidget(self.device_addr)
         left_layout.addWidget(addr_container)
