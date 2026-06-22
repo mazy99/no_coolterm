@@ -6,6 +6,7 @@ from PyQt6.QtGui import QFont, QIntValidator, QRegularExpressionValidator
 
 from modbus_core.modbus_controller import ModbusController 
 from utils.style_loader import load_stylesheet
+from serial_core.serial_config import SerialConfig
 from gui.modbus_table import   DEVICE_MAPS
 
 
@@ -19,6 +20,7 @@ class ModbusTerminal(QMainWindow):
 
         self.setWindowTitle("Modbus Терминал")
         self.setMinimumSize(1200, 800)
+        self.resize(1200, 800)
         self.dark_mode = False
         # СОЗДАЁМ ДВИЖОК
         self.modbus_engine = ModbusController()
@@ -31,6 +33,10 @@ class ModbusTerminal(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.refresh_com_ports)
         self.timer.start(2000)
+
+        self.connection_timer = QTimer()
+        self.connection_timer.timeout.connect(self.update_connection_time)
+        self.connection_start_time = None
 
     
     def refresh_com_ports(self):
@@ -86,6 +92,11 @@ class ModbusTerminal(QMainWindow):
         self.status_indicator.setStyleSheet("border-radius: 6px; background-color: #9CA3AF;")
         conn_layout.addWidget(self.status_indicator)
         
+        # Метка времени подключения
+        self.connection_time_label = QLabel("")
+        self.connection_time_label.setStyleSheet("color: #6B7280; font-size: 12px;")
+        conn_layout.addWidget(self.connection_time_label)
+        
         conn_layout.addWidget(QLabel("COM порт:"))
         self.port_combo = QComboBox()
         self.port_combo.setMinimumWidth(100)
@@ -116,6 +127,9 @@ class ModbusTerminal(QMainWindow):
         
         main_layout.addWidget(conn_frame)
         
+        # ========== ОСНОВНАЯ ГОРИЗОНТАЛЬНАЯ ОБЛАСТЬ ==========
+        top_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
         # ========== ЛЕВАЯ ПАНЕЛЬ - НАСТРОЙКИ ==========
         left_panel = QWidget()
         left_panel.setObjectName("card")
@@ -124,19 +138,33 @@ class ModbusTerminal(QMainWindow):
         left_layout.setContentsMargins(20, 20, 20, 20)
         
         left_layout.addWidget(QLabel("НАСТРОЙКИ ЗАПРОСА"))
-
-        # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
+    # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
         hex_validator_4 = QRegularExpressionValidator(QRegularExpression("[0-9A-Fa-f]{1,4}"))
         
-        # Адрес
+
+       # Адрес устройства (ИСПРАВЛЕНО: Теперь это выпадающий список QComboBox)
         addr_container = QWidget()
         addr_container_layout = QHBoxLayout(addr_container)
         addr_container_layout.setContentsMargins(0, 0, 0, 0)
         addr_label = QLabel("Адрес устройства")
-        addr_label.setMinimumWidth(130)
+        addr_label.setMinimumWidth(150)
         addr_container_layout.addWidget(addr_label)
-        self.device_addr = QLineEdit()
-        self.device_addr.setValidator(QIntValidator(1, 247)) # Только DEC
+        
+        self.device_addr = QComboBox()
+        # Динамически заполняем список на основе DEVICE_MAPS
+        for dev_id in sorted(DEVICE_MAPS.keys()):
+            dev_name = f"Устройство {dev_id}"
+            if dev_id in DEVICE_MAPS and 0 in DEVICE_MAPS[dev_id]:
+                param_text = DEVICE_MAPS[dev_id][0].get("Параметр", "")
+                if "Состояние " in param_text:
+                    try:
+                        # Красиво вырезаем имя (например, из "Состояние МКБ4 (код аварии)" получим "МКБ4")
+                        dev_name = param_text.split("Состояние ")[1].split("(")[0].strip()
+                    except:
+                        pass
+            # Добавляем строку, но связываем с ней числовой ID устройства через userData
+            self.device_addr.addItem(f"{dev_id} ({dev_name})", dev_id)
+            
         addr_container_layout.addWidget(self.device_addr)
         left_layout.addWidget(addr_container)
         
@@ -145,7 +173,7 @@ class ModbusTerminal(QMainWindow):
         cmd_container_layout = QHBoxLayout(cmd_container)
         cmd_container_layout.setContentsMargins(0, 0, 0, 0)
         cmd_label = QLabel("Команда")
-        cmd_label.setMinimumWidth(130)
+        cmd_label.setMinimumWidth(150)
         cmd_container_layout.addWidget(cmd_label)
         self.cmd_combo = QComboBox()
         self.cmd_combo.addItems(["03 Чтение", "06 Запись"])
@@ -156,8 +184,8 @@ class ModbusTerminal(QMainWindow):
         cell_container = QWidget()
         cell_container_layout = QHBoxLayout(cell_container)
         cell_container_layout.setContentsMargins(0, 0, 0, 0)
-        cell_label = QLabel("Начальная ячейка (hex)")
-        cell_label.setMinimumWidth(130)
+        cell_label = QLabel("Начальная ячейка (dec)")
+        cell_label.setMinimumWidth(150)
         cell_container_layout.addWidget(cell_label)
         self.start_addr = QLineEdit()
         self.start_addr.setValidator(QIntValidator(0, 65535)) # Только HEX
@@ -169,7 +197,7 @@ class ModbusTerminal(QMainWindow):
         count_container_layout = QHBoxLayout(count_container)
         count_container_layout.setContentsMargins(0, 0, 0, 0)
         count_label = QLabel("Кол-во байт (чтение)")
-        count_label.setMinimumWidth(130)
+        count_label.setMinimumWidth(150)
         count_container_layout.addWidget(count_label)
         self.read_count = QLineEdit()  
         self.read_count.setValidator(QIntValidator(1, 125)) # Только DEC
@@ -180,11 +208,11 @@ class ModbusTerminal(QMainWindow):
         write_container = QWidget()
         write_container_layout = QHBoxLayout(write_container)
         write_container_layout.setContentsMargins(0, 0, 0, 0)
-        write_label = QLabel("Данные записи (hex)")
-        write_label.setMinimumWidth(130)
+        write_label = QLabel("Данные записи (dec)")
+        write_label.setMinimumWidth(150)
         write_container_layout.addWidget(write_label)
         self.write_data = QLineEdit()
-        self.write_data.setValidator(hex_validator_4) # ИСПРАВЛЕНО: было start_addr
+        self.write_data.setValidator(hex_validator_4)
         self.write_data.setEnabled(False)
         write_container_layout.addWidget(self.write_data)
         left_layout.addWidget(write_container)
@@ -195,8 +223,8 @@ class ModbusTerminal(QMainWindow):
         right_panel = QWidget()
         right_panel.setObjectName("card")
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setSpacing(10)
-        right_layout.setContentsMargins(30, 30, 30, 30)
+        right_layout.setSpacing(15)
+        right_layout.setContentsMargins(30, 70, 30, 30)
         
         # Заголовок по центру
         header_widget = QWidget()
@@ -210,7 +238,7 @@ class ModbusTerminal(QMainWindow):
         
         header_layout.addStretch()
         right_layout.addWidget(header_widget)
-        right_layout.addSpacing(5)
+        right_layout.addSpacing(10)
         
         # Создаем 8 отдельных полей ввода для байт
         bytes_container = QWidget()
@@ -220,11 +248,10 @@ class ModbusTerminal(QMainWindow):
         
         self.byte_inputs = []
         byte_labels = ["Байт 1\nАдрес", "Байт 2\nКоманда", "Байт 3\nАдр.H", "Байт 4\nАдр.L", 
-                       "Байт 5\nДанные H", "Байт 6\nДанные L", "Байт 7\nCRC L", "Байт 8\nCRC H"]
+                    "Байт 5\nДанные H", "Байт 6\nДанные L", "Байт 7\nCRC L", "Байт 8\nCRC H"]
         
         # Валидатор для одиночных байт (максимум 2 символа HEX)
         hex_validator_2 = QRegularExpressionValidator(QRegularExpression("[0-9A-Fa-f]{1,2}"))
-
         for i in range(8):
             byte_widget = QWidget()
             byte_widget_layout = QVBoxLayout(byte_widget)
@@ -237,7 +264,7 @@ class ModbusTerminal(QMainWindow):
             byte_widget_layout.addWidget(label)
             
             byte_input = QLineEdit()
-            byte_input.setValidator(hex_validator_2) # ДОБАВЛЕНО: защита от неверного ввода
+            byte_input.setValidator(hex_validator_2)
             byte_input.setPlaceholderText("00")
             byte_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
             byte_input.setFixedWidth(80)
@@ -250,26 +277,23 @@ class ModbusTerminal(QMainWindow):
         self.byte_inputs[6].setReadOnly(True)
         self.byte_inputs[7].setReadOnly(True)
         right_layout.addWidget(bytes_container)
+        right_layout.addSpacing(15)
         
-        # Объединяем левую и правую панели в горизонтальный слой
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(left_panel, 1)
-        top_layout.addWidget(right_panel, 2)
-        main_layout.addLayout(top_layout)
-        
-        # Кнопка отправки
+        # Кнопка отправки - теперь здесь, под ячейками
         self.send_btn = QPushButton("Отправить запрос")
         self.send_btn.setObjectName("sendBtn")
-        self.send_btn.setMinimumHeight(50)
+        self.send_btn.setMinimumHeight(45)
         self.send_btn.setEnabled(False)
-        main_layout.addWidget(self.send_btn)
+        right_layout.addWidget(self.send_btn)
         
-
-
+        top_splitter.addWidget(left_panel)
+        top_splitter.addWidget(right_panel)
+        top_splitter.setSizes([350, 850])
+        main_layout.addWidget(top_splitter)
+        
         # Журнал событий
-        log_frame = QWidget()
+        log_frame = QFrame()
         log_frame.setObjectName("logFrame")
-
         log_layout = QVBoxLayout(log_frame)
         log_layout.setContentsMargins(20, 15, 20, 15)
         
@@ -285,8 +309,8 @@ class ModbusTerminal(QMainWindow):
         
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 12))
-        self.log_text.setMinimumHeight(280)
+        self.log_text.setFont(QFont("Consolas", 11))
+        self.log_text.setMinimumHeight(100)
         log_layout.addWidget(self.log_text)
         
         main_layout.addWidget(log_frame)
@@ -296,7 +320,7 @@ class ModbusTerminal(QMainWindow):
         self.disconnect_btn.clicked.connect(lambda: [self.animate_button(self.disconnect_btn), self.on_disconnect()])
         self.send_btn.clicked.connect(lambda: [self.animate_button(self.send_btn), self.on_send()])
         self.cmd_combo.currentIndexChanged.connect(self.on_command_changed)
-        self.device_addr.textChanged.connect(self.update_from_ui)
+        self.device_addr.currentIndexChanged.connect(self.update_from_ui)
         self.start_addr.textChanged.connect(self.update_from_ui)
         self.read_count.textChanged.connect(self.update_from_ui)
         self.write_data.textChanged.connect(self.update_from_ui)
@@ -308,7 +332,7 @@ class ModbusTerminal(QMainWindow):
         self.read_count.setEnabled(is_read)
         self.write_data.setEnabled(not is_read)
         self.update_from_ui()
-    
+
    
     
     def get_int(self, text, default=0):
@@ -334,9 +358,11 @@ class ModbusTerminal(QMainWindow):
             self.syncing = True
 
             # Читаем данные из UI с помощью безопасных методов
-            addr = self.get_int(self.device_addr.text(), 1)
+            addr = self.device_addr.currentData()
+            if addr is None:
+                addr = self.get_int(self.device_addr.currentText(), 0)
             cmd = 0x03 if self.cmd_combo.currentIndex() == 0 else 0x06
-            start = self.get_hex(self.start_addr.text(), 0) # Читаем адрес как HEX
+            start = self.get_int(self.start_addr.text(), 0) # Читаем адрес как HEX
 
             if cmd == 0x03:
                 count = self.get_int(self.read_count.text(), 8)
@@ -344,7 +370,7 @@ class ModbusTerminal(QMainWindow):
                     count = 8
                 val_or_count = count
             else:
-                val_or_count = self.get_hex(self.write_data.text(), 0)
+                val_or_count = self.get_int(self.write_data.text(), 0)
 
             # КРАСОТА: Используем твой готовый метод preview_request из контроллера!
             # Он возвращает строку вида "11 03 00 08 00 01 06 1A"
@@ -420,12 +446,14 @@ class ModbusTerminal(QMainWindow):
                 
                 # Адрес (переводим в DEC)
                 self.device_addr.blockSignals(True)
-                self.device_addr.setText(str(addr))
+                idx = self.device_addr.findData(addr)
+                if idx >= 0:
+                    self.device_addr.setCurrentIndex(idx)
                 self.device_addr.blockSignals(False)
                 
                 # Начальная ячейка (оставляем в HEX)
                 self.start_addr.blockSignals(True)
-                self.start_addr.setText(str(start))
+                self.start_addr.setText(f"{start:04X}")
                 self.start_addr.blockSignals(False)
                 
                 if cmd == 0x03:
@@ -465,7 +493,6 @@ class ModbusTerminal(QMainWindow):
 
         baud = int(self.baud_combo.currentText())
 
-        from serial_core.serial_config import SerialConfig
 
         config = SerialConfig(
             port=port,
@@ -483,6 +510,12 @@ class ModbusTerminal(QMainWindow):
             self.send_btn.setEnabled(True)
             self.status_indicator.setStyleSheet("border-radius: 6px; background-color: #10B981;")
             self.log(f"Подключено к {port}")
+
+
+            self.connection_start_time = datetime.now()
+            self.connection_timer.start(1000) 
+            self.update_connection_time()
+            self.connection_time_label.setText("00:00:00")
         else:
             self.log("Ошибка подключения")
     
@@ -495,28 +528,43 @@ class ModbusTerminal(QMainWindow):
         self.send_btn.setEnabled(False)
         self.status_indicator.setStyleSheet("border-radius: 6px; background-color: #9CA3AF;")
         self.log("Отключено")
+
+        self.connection_timer.stop()
+        self.connection_start_time = None
+        self.connection_time_label.setText("")
+    
+    def update_connection_time(self):
+        """Метод вызывается каждую секунду для обновления счетчика времени подключения"""
+        if self.connection_start_time is None:
+            return
+        
+        # Считаем разницу во времени
+        delta = datetime.now() - self.connection_start_time
+        seconds = int(delta.total_seconds())
+        
+        # Разлаживаем на часы, минуты и секунды
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        
+        # Выводим в формате 00:00:00
+        time_str = f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        self.connection_time_label.setText(time_str)
     
     def format_registers_to_ascii_table(self, slave_id: int, start_address: int, registers: list) -> str:
-        """Форматирует прочитанные регистры в красивую текстовую ASCII-таблицу с масштабом"""
+        """Форматирует прочитанные регистры в красивую текстовую ASCII-таблицу с автоматической шириной столбцов"""
 
         if slave_id not in DEVICE_MAPS:
             return ""
-        lines = []
+            
         current_map = DEVICE_MAPS.get(slave_id, {})
-        # Шапка таблицы с фиксированной шириной столбцов (с учетом новой колонки Масштаб)
-        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
-        lines.append(f"| {'Адрес':<6} | {'Параметр':<53} | {'Физическое знач':<15} | {'Масштаб':<7} | {'HEX':<8} |")
-        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
+        rows = []
         
-        has_data = False
-        
-        # Цикл идет строго по полученному массиву регистров (динамический размер: 1, 5, 10 и т.д.)
+        # Шаг 1: Сначала собираем все сырые текстовые данные строк в список
         for offset, val in enumerate(registers):
             current_addr = start_address + offset
             
-            # Проверяем, описан ли этот регистр в карте МКБ4
             if current_addr in current_map:
-                has_data = True
                 info = current_map[current_addr]
 
                 # Обработка знака (signed short, 16 бит)
@@ -525,7 +573,7 @@ class ModbusTerminal(QMainWindow):
                     raw_val -= 0x10000
                 
                 # Ключ "Масштаб"
-                scale= info["Масштаб"]
+                scale = info["Масштаб"]
                 phys_val = raw_val / scale
                 phys_str = f"{phys_val:.2f}" if scale > 1 else f"{int(phys_val)}"
                 scale_str = str(scale)
@@ -535,20 +583,46 @@ class ModbusTerminal(QMainWindow):
                 name_str = info["Параметр"]
             else:
                 # Если запросили регистр, которого нет в карте параметров
-                has_data = True
                 addr_str = f"0x{current_addr:04X}"
                 hex_str = f"0x{val:04X}"
-                phys_str = f"{val}"  # выводим просто как DEC число
+                phys_str = f"{val}"
                 scale_str = "1"
                 name_str = f"Регистр {current_addr} (Вне карты параметров)"
 
-            # Формируем строку таблицы с выравниванием (добавлена колонка scale_str)
-            lines.append(f"| {addr_str:<6} | {name_str:<53} | {phys_str:>15} | {scale_str:>7} | {hex_str:<8} |")
+            # Добавляем кортеж строк для последующего анализа длины
+            rows.append((addr_str, name_str, phys_str, scale_str, hex_str))
         
-        lines.append("+" + "-"*8 + "+" + "-"*55 + "+" + "-"*17 + "+" + "-"*9 + "+" + "-"*10 + "+")
+        if not rows:
+            return ""
+
+        # Названия заголовков таблицы
+        h_addr, h_name, h_phys, h_scale, h_hex = "Адрес", "Параметр", "Физическое знач", "Масштаб", "HEX"
+
+        # Шаг 2: Вычисляем максимальную ширину для каждого столбца 
+        # Сравниваем длину заголовка и длину всех строк в этом столбце + добавляем небольшой запас (например, +1 символ)
+        padding = 1  
+        w_addr = max(len(h_addr), max(len(r[0]) for r in rows)) + padding
+        w_name = max(len(h_name), max(len(r[1]) for r in rows)) + padding
+        w_phys = max(len(h_phys), max(len(r[2]) for r in rows)) + padding
+        w_scale = max(len(h_scale), max(len(r[3]) for r in rows)) + padding
+        w_hex = max(len(h_hex), max(len(r[4]) for r in rows)) + padding
+
+        # Шаг 3: Динамически формируем разделительную линию (с учетом пробелов-отступов "| {} |", поэтому +2)
+        sep = "+" + "-"*(w_addr+2) + "+" + "-"*(w_name+2) + "+" + "-"*(w_phys+2) + "+" + "-"*(w_scale+2) + "+" + "-"*(w_hex+2) + "+"
         
-        # Возвращаем готовую таблицу, если в ней есть хоть одна строчка данных
-        return "\n".join(lines) if has_data else ""
+        lines = []
+        lines.append(sep)
+        # Шапка таблицы с выравниванием по левому краю
+        lines.append(f"| {h_addr:<{w_addr}} | {h_name:<{w_name}} | {h_phys:<{w_phys}} | {h_scale:<{w_scale}} | {h_hex:<{w_hex}} |")
+        lines.append(sep)
+        
+        # Шаг 4: Заполняем таблицу данными (сохраняем выравнивание: текст влево, числа вправо)
+        for r in rows:
+            lines.append(f"| {r[0]:<{w_addr}} | {r[1]:<{w_name}} | {r[2]:>{w_phys}} | {r[3]:>{w_scale}} | {r[4]:<{w_hex}} |")
+        
+        lines.append(sep)
+        
+        return "\n".join(lines)
     
     def on_send(self):
         if not self.modbus_engine.is_connected():
@@ -556,10 +630,12 @@ class ModbusTerminal(QMainWindow):
             return
 
 
-        slave_id = self.get_int(self.device_addr.text(), 1)
+        slave_id = self.device_addr.currentData()
+        if slave_id is None:
+            slave_id = self.get_int(self.device_addr.currentText(), 0)
         
 
-        address = self.get_int(self.start_addr.text(), 0)
+        address = self.get_hex(self.start_addr.text(), 0)
 
         if self.cmd_combo.currentIndex() == 0:  # READ
             # DEC поле (все верно)
@@ -626,7 +702,7 @@ class ModbusTerminal(QMainWindow):
 
             try:
                 response = self.modbus_engine.write_single_register(slave_id, address, value)
-                self.log(f"Ответ: {response.hex(sep='')}")
+                self.log(f"Ответ: {response}")
 
             except Exception as e:
                 self.log(f"Ошибка записи: {e}")
