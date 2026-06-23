@@ -309,6 +309,10 @@ class ModbusTerminal(QMainWindow):
         log_header = QHBoxLayout()
         log_header.addWidget(QLabel("ЖУРНАЛ СОБЫТИЙ"))
         log_header.addStretch()
+        save_log_btn = QPushButton("Сохранить лог")
+        save_log_btn.setObjectName("saveLogBtn")
+        save_log_btn.clicked.connect(self.save_log_file)
+        log_header.addWidget(save_log_btn)
         clear_btn = QPushButton("Очистить")
         clear_btn.setObjectName("clearBtn")
         clear_btn.clicked.connect(self.clear_log)
@@ -653,7 +657,28 @@ class ModbusTerminal(QMainWindow):
         lines.append(sep)
         
         return "\n".join(lines)
-    
+
+    def save_log_file(self):
+        log_content = self.log_text.toPlainText().strip()
+        if not log_content:
+            self.log("Предупреждение: Журнал событий пуст, сохранять нечего")
+            return
+        current_time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        default_filename = f"журнал событий {current_time_str}.txt"
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить журнал событий",
+            default_filename,
+            "Текстовые файлы (*.txt);;Все файлы (*)"
+        ) 
+
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as file:
+                    file.write(log_content)
+                self.log(f"Журнал успешно сохранен в файл: {file_path}")
+            except Exception as e:
+                self.log(f"Ошибка при сохранении файла: {e}")
     def on_send(self):
         if not self.modbus_engine.is_connected():
             self.log("Ошибка: нет подключения")
