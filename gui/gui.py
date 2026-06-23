@@ -140,6 +140,7 @@ class ModbusTerminal(QMainWindow):
         left_layout.addWidget(QLabel("НАСТРОЙКИ ЗАПРОСА"))
     # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
         hex_validator_4 = QRegularExpressionValidator(QRegularExpression("[0-9A-Fa-f]{1,4}"))
+        dec_validator = QRegularExpression("^(0|[1-9][0-9]{0,4})$")
         
 
        # Адрес устройства (ИСПРАВЛЕНО: Теперь это выпадающий список QComboBox)
@@ -194,7 +195,7 @@ class ModbusTerminal(QMainWindow):
         cell_label.setMinimumWidth(150)
         cell_container_layout.addWidget(cell_label)
         self.start_addr = QLineEdit()
-        self.start_addr.setValidator(QIntValidator(0, 65535)) # Только HEX
+        self.start_addr.setValidator(QRegularExpressionValidator(dec_validator)) 
         cell_container_layout.addWidget(self.start_addr)
         left_layout.addWidget(self.cell_container)
         
@@ -206,7 +207,7 @@ class ModbusTerminal(QMainWindow):
         count_label.setMinimumWidth(150)
         count_container_layout.addWidget(count_label)
         self.read_count = QLineEdit()  
-        self.read_count.setValidator(QIntValidator(1, 125)) # Только DEC
+        self.read_count.setValidator(QRegularExpressionValidator(dec_validator)) 
         count_container_layout.addWidget(self.read_count)
         left_layout.addWidget(self.count_container)
         
@@ -218,8 +219,7 @@ class ModbusTerminal(QMainWindow):
         write_label.setMinimumWidth(150)
         write_container_layout.addWidget(write_label)
         self.write_data = QLineEdit()
-        self.write_data.setValidator(hex_validator_4)
-        # self.write_data.setEnabled(False)
+        self.write_data.setValidator(QRegularExpressionValidator(dec_validator))
         write_container_layout.addWidget(self.write_data)
         left_layout.addWidget(self.write_container)
         
@@ -482,7 +482,8 @@ class ModbusTerminal(QMainWindow):
                 
                 # Начальная ячейка (оставляем в HEX)
                 self.start_addr.blockSignals(True)
-                self.start_addr.setText(f"{start:04X}")
+                # self.start_addr.setText(f"{start:04X}")
+                self.start_addr.setText(str(start))
                 self.start_addr.blockSignals(False)
                 
                 if cmd == 0x03:
