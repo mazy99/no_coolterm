@@ -139,7 +139,7 @@ class ModbusTerminal(QMainWindow):
         
         left_layout.addWidget(QLabel("НАСТРОЙКИ ЗАПРОСА"))
     # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
-        hex_validator_4 = QRegularExpressionValidator(QRegularExpression("[0-9A-Fa-f]{1,4}"))
+        hex_validator_4 = QRegularExpression("^[0-9A-Fa-f]{1,4}$")
         dec_validator = QRegularExpression("^(0|[1-9][0-9]{0,4})$")
         
 
@@ -191,11 +191,11 @@ class ModbusTerminal(QMainWindow):
         self.cell_container = QWidget()
         cell_container_layout = QHBoxLayout(self.cell_container)
         cell_container_layout.setContentsMargins(0, 0, 0, 0)
-        cell_label = QLabel("Начальная ячейка (dec)")
+        cell_label = QLabel("Начальная ячейка (hex)")
         cell_label.setMinimumWidth(150)
         cell_container_layout.addWidget(cell_label)
         self.start_addr = QLineEdit()
-        self.start_addr.setValidator(QRegularExpressionValidator(dec_validator)) 
+        self.start_addr.setValidator(QRegularExpressionValidator(hex_validator_4)) 
         cell_container_layout.addWidget(self.start_addr)
         left_layout.addWidget(self.cell_container)
         
@@ -395,7 +395,7 @@ class ModbusTerminal(QMainWindow):
             if addr is None:
                 addr = self.get_int(self.device_addr.currentText(), 0)
             cmd = 0x03 if self.cmd_combo.currentIndex() == 0 else 0x06
-            start = self.get_int(self.start_addr.text(), 0) # Читаем адрес как HEX
+            start = self.get_hex(self.start_addr.text(), 0) # Читаем адрес как HEX
 
             if cmd == 0x03:
                 count = self.get_int(self.read_count.text(), 8)
@@ -486,8 +486,8 @@ class ModbusTerminal(QMainWindow):
                 
                 # Начальная ячейка (оставляем в HEX)
                 self.start_addr.blockSignals(True)
-                # self.start_addr.setText(f"{start:04X}")
-                self.start_addr.setText(str(start))
+                self.start_addr.setText(f"{start:04X}")
+                # self.start_addr.setText(str(start))
                 self.start_addr.blockSignals(False)
                 
                 if cmd == 0x03:
@@ -690,7 +690,7 @@ class ModbusTerminal(QMainWindow):
             slave_id = self.get_int(self.device_addr.currentText(), 0)
         
 
-        address = self.get_int(self.start_addr.text(), 0)
+        address = self.get_hex(self.start_addr.text(), 0)
 
         if self.cmd_combo.currentIndex() == 0:  # READ
             # DEC поле (все верно)
