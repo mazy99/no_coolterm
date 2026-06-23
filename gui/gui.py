@@ -182,12 +182,13 @@ class ModbusTerminal(QMainWindow):
         cmd_container_layout.addWidget(cmd_label)
         self.cmd_combo = QComboBox()
         self.cmd_combo.addItems(["03 Чтение", "06 Запись"])
+        self.cmd_combo.setCurrentIndex(0)
         cmd_container_layout.addWidget(self.cmd_combo)
         left_layout.addWidget(cmd_container)
         
         # Ячейка
-        cell_container = QWidget()
-        cell_container_layout = QHBoxLayout(cell_container)
+        self.cell_container = QWidget()
+        cell_container_layout = QHBoxLayout(self.cell_container)
         cell_container_layout.setContentsMargins(0, 0, 0, 0)
         cell_label = QLabel("Начальная ячейка (dec)")
         cell_label.setMinimumWidth(150)
@@ -195,11 +196,11 @@ class ModbusTerminal(QMainWindow):
         self.start_addr = QLineEdit()
         self.start_addr.setValidator(QIntValidator(0, 65535)) # Только HEX
         cell_container_layout.addWidget(self.start_addr)
-        left_layout.addWidget(cell_container)
+        left_layout.addWidget(self.cell_container)
         
         # Кол-во байт
-        count_container = QWidget()
-        count_container_layout = QHBoxLayout(count_container)
+        self.count_container = QWidget()
+        count_container_layout = QHBoxLayout(self.count_container)
         count_container_layout.setContentsMargins(0, 0, 0, 0)
         count_label = QLabel("Кол-во байт (чтение)")
         count_label.setMinimumWidth(150)
@@ -207,22 +208,25 @@ class ModbusTerminal(QMainWindow):
         self.read_count = QLineEdit()  
         self.read_count.setValidator(QIntValidator(1, 125)) # Только DEC
         count_container_layout.addWidget(self.read_count)
-        left_layout.addWidget(count_container)
+        left_layout.addWidget(self.count_container)
         
         # Данные записи
-        write_container = QWidget()
-        write_container_layout = QHBoxLayout(write_container)
+        self.write_container = QWidget()
+        write_container_layout = QHBoxLayout(self.write_container)
         write_container_layout.setContentsMargins(0, 0, 0, 0)
         write_label = QLabel("Данные записи (dec)")
         write_label.setMinimumWidth(150)
         write_container_layout.addWidget(write_label)
         self.write_data = QLineEdit()
         self.write_data.setValidator(hex_validator_4)
-        self.write_data.setEnabled(False)
+        # self.write_data.setEnabled(False)
         write_container_layout.addWidget(self.write_data)
-        left_layout.addWidget(write_container)
+        left_layout.addWidget(self.write_container)
         
+
         left_layout.addStretch()
+
+        self.left_panel_layout = left_layout
         
         # ========== ПРАВАЯ ПАНЕЛЬ - ФОРМИРУЕМЫЙ ЗАПРОС ==========
         right_panel = QWidget()
@@ -330,10 +334,30 @@ class ModbusTerminal(QMainWindow):
         self.read_count.textChanged.connect(self.update_from_ui)
         self.write_data.textChanged.connect(self.update_from_ui)
         
-        self.update_from_ui()
+        self.on_command_changed()
+        
     
     def on_command_changed(self):
         is_read = self.cmd_combo.currentIndex() == 0
+        self.left_panel_layout.removeWidget(self.count_container)
+        self.left_panel_layout.removeWidget(self.write_container)
+
+        if is_read:
+            self.count_container.show()
+            self.write_container.hide()
+            
+            # Возвращаем в лайаут только поле количества байт
+            self.left_panel_layout.insertWidget(4, self.count_container)
+        else:
+            # Режим ЗАПИСИ: 
+            # Скрываем количество байт, показываем данные записи
+            self.count_container.hide()
+            self.write_container.show()
+            
+            # Поднимаем данные записи НАВЕРХ (вставляем сразу после ячейки адреса)
+            self.left_panel_layout.insertWidget(4, self.write_container)
+            
+        self.update_from_ui()
         self.read_count.setEnabled(is_read)
         self.write_data.setEnabled(not is_read)
         self.update_from_ui()
@@ -640,7 +664,7 @@ class ModbusTerminal(QMainWindow):
             slave_id = self.get_int(self.device_addr.currentText(), 0)
         
 
-        address = self.get_hex(self.start_addr.text(), 0)
+        address = self.get_int(self.start_addr.text(), 0)
 
         if self.cmd_combo.currentIndex() == 0:  # READ
             # DEC поле (все верно)
@@ -702,7 +726,7 @@ class ModbusTerminal(QMainWindow):
 
         else:  # WRITE
             # HEX поле (ИСПРАВЛЕНО: используем get_hex)
-            value = self.get_hex(self.write_data.text(), 0)
+            value = self.get_int(self.write_data.text(), 0)
             self.log(f"Запись: {self.modbus_engine.preview_request(slave_id=slave_id, function_code=6, address=address, value_or_count=value)}")
 
             try:
