@@ -49,9 +49,9 @@ class ModbusController:
         if not self.modbus_rtu:
             raise RuntimeError("ModbusController: not connected")
 
-    def _validate_slave(self, slave_id: int):
-        if not (1 <= slave_id <= 247):
-            raise ValueError("Invalid slave_id (1–247)")
+    # def _validate_slave(self, slave_id: int):
+    #     if not (1 <= slave_id <= 247):
+    #         raise ValueError("Invalid slave_id (1–247)")
 
     def _validate_address(self, address: int):
         if address < 0 or address > 0xFFFF:
@@ -71,7 +71,7 @@ class ModbusController:
     def read_holding_registers(self, slave_id: int, address: int, count: int) -> dict:
         self._ensure_connected()
 
-        self._validate_slave(slave_id)
+        # self._validate_slave(slave_id)
         self._validate_address(address)
         self._validate_count(count)
 
@@ -82,7 +82,7 @@ class ModbusController:
     def write_single_register(self, slave_id: int, address: int, value: int) -> dict:
         self._ensure_connected()
 
-        self._validate_slave(slave_id)
+        # self._validate_slave(slave_id)
         self._validate_address(address)
         self._validate_value(value)
 
@@ -97,7 +97,7 @@ class ModbusController:
         return ModbusRTU.crc16(data)
     
     def preview_request(self, slave_id: int, function_code: int, address: int, value_or_count: int) -> bytes:
-        self._validate_slave(slave_id)
+        # self._validate_slave(slave_id)
         self._validate_address(address)
 
         payload = bytearray()
