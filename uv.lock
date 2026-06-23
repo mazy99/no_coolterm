@@ -31,6 +31,7 @@ dependencies = [
     { name = "pyinstaller" },
     { name = "pyqt6" },
     { name = "pyserial" },
+    { name = "pyside6" },
 ]
 
 [package.metadata]
@@ -39,6 +40,9 @@ requires-dist = [
     { name = "pyqt6", specifier = ">=6.11.0" },
     { name = "pyserial", specifier = ">=3.5" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pyinstaller", specifier = ">=6.20.0" }]
 
 [[package]]
 name = "packaging"
