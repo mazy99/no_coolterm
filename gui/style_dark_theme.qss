@@ -165,6 +165,18 @@ QMainWindow, QWidget {
                 QPushButton#clearBtn:hover {
                     background-color: #3A3B40;
                 }
+
+                QPushButton#saveLogBtn {
+                    background-color: #2C2D32;
+                    color: #E8E8F0;
+                    border: 1px solid #3D3E44;
+                    border-radius: 6px;
+                    padding: 5px 14px;
+                    font-size: 11px;
+                }
+                QPushButton#saveLogBtn:hover {
+                    background-color: #3A3B40;
+                }
                 
                 QTextEdit {
                     background-color: #1A1B1E;
