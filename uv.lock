@@ -31,7 +31,11 @@ dependencies = [
     { name = "pyinstaller" },
     { name = "pyqt6" },
     { name = "pyserial" },
-    { name = "pyside6" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pyinstaller" },
 ]
 
 [package.metadata]
