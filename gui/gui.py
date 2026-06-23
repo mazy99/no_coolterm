@@ -152,6 +152,7 @@ class ModbusTerminal(QMainWindow):
         addr_container_layout.addWidget(addr_label)
         
         self.device_addr = QComboBox()
+
         # Динамически заполняем список на основе DEVICE_MAPS
         for dev_id in sorted(DEVICE_MAPS.keys()):
             dev_name = f"Устройство {dev_id}"
@@ -169,6 +170,7 @@ class ModbusTerminal(QMainWindow):
             hex_id = f"{dev_id:02X}" 
             
             # Добавляем HEX-строку для отображения, но связываем с ней исходный числовой ID через userData
+            # self.device_addr.addItem(f"{hex_id} ({dev_name})", dev_id)
             self.device_addr.addItem(f"{hex_id} ({dev_name})", dev_id)
             
         addr_container_layout.addWidget(self.device_addr)
@@ -391,19 +393,42 @@ class ModbusTerminal(QMainWindow):
             self.syncing = True
 
             # Читаем данные из UI с помощью безопасных методов
-            addr = self.device_addr.currentData()
-            if addr is None:
-                addr = self.get_int(self.device_addr.currentText(), 0)
+            # addr = self.device_addr.currentData()
+            # if addr is None:
+            #     if self.device_addr.currentIndex == -1:
+            #         addr = self.current_packet[0]
+            #     else:
+            #         addr = self.get_int(self.device_addr.currentText(), 0)
+            val_or_count = (self.current_packet[4] << 8) | self.current_packet[5]
             cmd = 0x03 if self.cmd_combo.currentIndex() == 0 else 0x06
-            start = self.get_hex(self.start_addr.text(), 0) # Читаем адрес как HEX
+
+            current_item_data = self.device_addr.currentData()
+            if current_item_data == "custom":
+                addr = self.current_packet[0] # Если кастомный, берем строго из правой панели
+            else:
+                addr = current_item_data
+                if addr is None:
+                    addr = self.current_packet[0]
+
+            if not self.start_addr.text().strip():
+                start = (self.current_packet[2] << 8) | self.current_packet[3]
+            
+            else:
+                start = self.get_hex(self.start_addr.text(), 0) # Читаем адрес как HEX
 
             if cmd == 0x03:
-                count = self.get_int(self.read_count.text(), 8)
-                if count < 1 or count > 125:  # Валидация по стандарту Modbus
-                    count = 8
-                val_or_count = count
+                    if not self.read_count.text().strip():
+                        count = (self.current_packet[4] << 8) | self.current_packet[5]
+                    else:
+                        count = self.get_int(self.read_count.text(), 8)
+                    if count < 1 or count > 125:  # Валидация Modbus
+                        count = 8
+                    val_or_count = count
             else:
-                val_or_count = self.get_int(self.write_data.text(), 0)
+                    if not self.write_data.text().strip():
+                        val_or_count = (self.current_packet[4] << 8) | self.current_packet[5]
+                    else:
+                        val_or_count = self.get_int(self.write_data.text(), 0)
 
             # КРАСОТА: Используем твой готовый метод preview_request из контроллера!
             # Он возвращает строку вида "11 03 00 08 00 01 06 1A"
@@ -480,13 +505,34 @@ class ModbusTerminal(QMainWindow):
                 # Адрес (переводим в DEC)
                 self.device_addr.blockSignals(True)
                 idx = self.device_addr.findData(addr)
+                
                 if idx >= 0:
+                    # Если адрес стандартный, удаляем временный кастомный пункт (если он был в конце)
+                    for i in range(self.device_addr.count()):
+                        if self.device_addr.itemData(i) == "custom":
+                            self.device_addr.removeItem(i)
+                            break
+                    # Ищем заново индекс, так как он мог сместиться после удаления
+                    idx = self.device_addr.findData(addr)
                     self.device_addr.setCurrentIndex(idx)
+                else:
+                    # Если адреса нет в DEVICE_MAPS — это кастомный адрес.
+                    # Сначала удаляем старый временный пункт, если он есть
+                    for i in range(self.device_addr.count()):
+                        if self.device_addr.itemData(i) == "custom":
+                            self.device_addr.removeItem(i)
+                            break
+                    
+                    # Добавляем новый временный пункт в конец списка и выбираем его
+                    custom_text = f"{addr:02X} адрес"
+                    self.device_addr.addItem(custom_text, "custom")
+                    self.device_addr.setCurrentIndex(self.device_addr.count() - 1)
+                    
                 self.device_addr.blockSignals(False)
                 
                 # Начальная ячейка (оставляем в HEX)
                 self.start_addr.blockSignals(True)
-                self.start_addr.setText(f"{start:04X}")
+                self.start_addr.setText(f"{start:X}")
                 # self.start_addr.setText(str(start))
                 self.start_addr.blockSignals(False)
                 
@@ -684,10 +730,13 @@ class ModbusTerminal(QMainWindow):
             self.log("Ошибка: нет подключения")
             return
 
-
-        slave_id = self.device_addr.currentData()
-        if slave_id is None:
-            slave_id = self.get_int(self.device_addr.currentText(), 0)
+        if self.device_addr.currentIndex() == -1 or  self.device_addr.currentData() == "custom":
+            slave_id = self.current_packet[0]
+        
+        else:
+            slave_id = self.device_addr.currentData()
+            if slave_id is None:
+                slave_id = self.get_int(self.device_addr.currentText(), 0)
         
 
         address = self.get_hex(self.start_addr.text(), 0)
