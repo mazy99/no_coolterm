@@ -22,7 +22,6 @@ class ModbusTerminal(QMainWindow):
         self.setMinimumSize(1200, 800)
         self.resize(1200, 800)
         self.dark_mode = False
-        # СОЗДАЁМ ДВИЖОК
         self.modbus_engine = ModbusController()
         self.setup_ui()
         self.apply_styles()
@@ -140,7 +139,7 @@ class ModbusTerminal(QMainWindow):
         left_layout.addWidget(QLabel("НАСТРОЙКИ ЗАПРОСА"))
     # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
         hex_validator_4 = QRegularExpression("^[0-9A-Fa-f]{1,4}$")
-        dec_validator = QRegularExpression("^(0|[1-9][0-9]{0,4})$")
+        dec_validator = QRegularExpression("^(0|[1-9][0-9]{0,3})$")
         
 
        # Адрес устройства (ИСПРАВЛЕНО: Теперь это выпадающий список QComboBox)
@@ -404,13 +403,7 @@ class ModbusTerminal(QMainWindow):
         try:
             self.syncing = True
 
-            # Читаем данные из UI с помощью безопасных методов
-            # addr = self.device_addr.currentData()
-            # if addr is None:
-            #     if self.device_addr.currentIndex == -1:
-            #         addr = self.current_packet[0]
-            #     else:
-            #         addr = self.get_int(self.device_addr.currentText(), 0)
+
             val_or_count = (self.current_packet[4] << 8) | self.current_packet[5]
             cmd = 0x03 if self.cmd_combo.currentIndex() == 0 else 0x06
 
@@ -433,8 +426,8 @@ class ModbusTerminal(QMainWindow):
                         count = (self.current_packet[4] << 8) | self.current_packet[5]
                     else:
                         count = self.get_int(self.read_count.text(), 8)
-                    if count < 1 or count > 125:  # Валидация Modbus
-                        count = 8
+                    if count < 1 or count > 65535:  # Валидация Modbus
+                        count = 0
                     val_or_count = count
             else:
                     if not self.write_data.text().strip():
