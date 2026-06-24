@@ -312,7 +312,7 @@ class ModbusTerminal(QMainWindow):
         log_header = QHBoxLayout()
         log_header.addWidget(QLabel("ЖУРНАЛ СОБЫТИЙ"))
         log_header.addStretch()
-        save_log_btn = QPushButton("Сохранить лог")
+        save_log_btn = QPushButton("Сохранить")
         save_log_btn.setObjectName("saveLogBtn")
         save_log_btn.clicked.connect(self.save_log_file)
         log_header.addWidget(save_log_btn)
@@ -600,7 +600,7 @@ class ModbusTerminal(QMainWindow):
             self.connection_start_time = datetime.now()
             self.connection_timer.start(1000) 
             self.update_connection_time()
-            self.connection_time_label.setText("00:00:00")
+            self.connection_time_label.setText("Подключено: 00:00:00")
         else:
             self.log("Ошибка подключения")
     
@@ -633,7 +633,7 @@ class ModbusTerminal(QMainWindow):
         secs = seconds % 60
         
         # Выводим в формате 00:00:00
-        time_str = f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        time_str = f"Подключено: {hours:02d}:{minutes:02d}:{secs:02d}"
         self.connection_time_label.setText(time_str)
     
     def format_registers_to_ascii_table(self, slave_id: int, start_address: int, registers: list) -> str:
