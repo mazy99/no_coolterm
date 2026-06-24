@@ -193,9 +193,9 @@ class ModbusTerminal(QMainWindow):
         self.cell_container = QWidget()
         cell_container_layout = QHBoxLayout(self.cell_container)
         cell_container_layout.setContentsMargins(0, 0, 0, 0)
-        cell_label = QLabel("Начальная ячейка (hex)")
-        cell_label.setMinimumWidth(150)
-        cell_container_layout.addWidget(cell_label)
+        self.cell_label = QLabel("Начальная ячейка (hex)")
+        self.cell_label.setMinimumWidth(150)
+        cell_container_layout.addWidget(self.cell_label)
         self.start_addr = QLineEdit()
         self.start_addr.setValidator(QRegularExpressionValidator(hex_validator_4)) 
         cell_container_layout.addWidget(self.start_addr)
@@ -205,7 +205,7 @@ class ModbusTerminal(QMainWindow):
         self.count_container = QWidget()
         count_container_layout = QHBoxLayout(self.count_container)
         count_container_layout.setContentsMargins(0, 0, 0, 0)
-        count_label = QLabel("Кол-во байт (чтение)")
+        count_label = QLabel("Кол-во слов (чтение)")
         count_label.setMinimumWidth(150)
         count_container_layout.addWidget(count_label)
         self.read_count = QLineEdit()  
@@ -258,7 +258,8 @@ class ModbusTerminal(QMainWindow):
         bytes_layout.setContentsMargins(0, 0, 0, 0)
         
         self.byte_inputs = []
-        byte_labels = ["Байт 1\nАдрес", "Байт 2\nКоманда", "Байт 3\nАдр.H", "Байт 4\nАдр.L", 
+        self.byte_label_widgets = []
+        self.byte_labels = ["Байт 1\nАдрес", "Байт 2\nКоманда", "Байт 3\nАдр. H", "Байт 4\nАдр. L", 
                     "Байт 5\nДанные H", "Байт 6\nДанные L", "Байт 7\nCRC L", "Байт 8\nCRC H"]
         
         # Валидатор для одиночных байт (максимум 2 символа HEX)
@@ -269,10 +270,11 @@ class ModbusTerminal(QMainWindow):
             byte_widget_layout.setSpacing(6)
             byte_widget_layout.setContentsMargins(0, 0, 0, 0)
             
-            label = QLabel(byte_labels[i])
+            label = QLabel(self.byte_labels[i])
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setObjectName("byteLabel")
             byte_widget_layout.addWidget(label)
+            self.byte_label_widgets.append(label)
             
             byte_input = QLineEdit()
             byte_input.setValidator(hex_validator_2)
@@ -349,12 +351,18 @@ class ModbusTerminal(QMainWindow):
         self.left_panel_layout.removeWidget(self.write_container)
 
         if is_read:
+            self.cell_label.setText("Начальная ячейка (hex)")
             self.count_container.show()
             self.write_container.hide()
             
             # Возвращаем в лайаут только поле количества байт
             self.left_panel_layout.insertWidget(4, self.count_container)
+
+            if hasattr(self,'byte_label_widgets') and len(self.byte_label_widgets) > 5:
+                self.byte_label_widgets[4].setText("Байт 5\nКол-во слов L")
+                self.byte_label_widgets[5].setText("Байт 6\nКол-во слов H")
         else:
+            self.cell_label.setText("Ячейка для записи (hex)")
             # Режим ЗАПИСИ: 
             # Скрываем количество байт, показываем данные записи
             self.count_container.hide()
@@ -362,6 +370,10 @@ class ModbusTerminal(QMainWindow):
             
             # Поднимаем данные записи НАВЕРХ (вставляем сразу после ячейки адреса)
             self.left_panel_layout.insertWidget(4, self.write_container)
+
+            if hasattr(self,'byte_label_widgets') and len(self.byte_label_widgets) > 5:
+                self.byte_label_widgets[4].setText("Байт 5\nДанные L")
+                self.byte_label_widgets[5].setText("Байт 6\nДанные H")
             
         self.update_from_ui()
         self.read_count.setEnabled(is_read)
