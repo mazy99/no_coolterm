@@ -2,10 +2,11 @@ import sys
 from datetime import datetime
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRegularExpression
-from PyQt6.QtGui import QFont, QIntValidator, QRegularExpressionValidator
+from PyQt6.QtGui import QFont, QIcon, QRegularExpressionValidator
 
 from modbus_core.modbus_controller import ModbusController 
 from utils.style_loader import load_stylesheet
+from utils.get_resource_path import get_resource_path
 from serial_core.serial_config import SerialConfig
 from gui.modbus_table import   DEVICE_MAPS
 
@@ -19,7 +20,8 @@ class ModbusTerminal(QMainWindow):
         self.current_packet = [0] * 8 # текущий формируемый пакет (8 байт)
 
         self.setWindowTitle("Modbus Терминал")
-        self.setMinimumSize(1200, 800)
+        self.setWindowIcon(QIcon(get_resource_path("gui/icon.ico")))
+        self.setMinimumSize(800, 600)
         self.resize(1200, 800)
         self.dark_mode = False
         self.modbus_engine = ModbusController()
@@ -74,7 +76,7 @@ class ModbusTerminal(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
-        main_layout.setSpacing(20)
+        main_layout.setSpacing(12)
         main_layout.setContentsMargins(25, 25, 25, 25)
         
         # Панель подключения
@@ -134,7 +136,7 @@ class ModbusTerminal(QMainWindow):
         left_panel.setObjectName("card")
         left_layout = QVBoxLayout(left_panel)
         left_layout.setSpacing(15)
-        left_layout.setContentsMargins(20, 20, 20, 20)
+        left_layout.setContentsMargins(15, 15, 15, 15)
         
         left_layout.addWidget(QLabel("НАСТРОЙКИ ЗАПРОСА"))
     # Создаем валидатор для HEX-полей (от 1 до 4 символов: 0-9, A-F)
@@ -274,16 +276,21 @@ class ModbusTerminal(QMainWindow):
             label.setObjectName("byteLabel")
             byte_widget_layout.addWidget(label)
             self.byte_label_widgets.append(label)
+            label.setMinimumWidth(50)
+            label.setMaximumWidth(85)
             
             byte_input = QLineEdit()
             byte_input.setValidator(hex_validator_2)
             byte_input.setPlaceholderText("00")
             byte_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            byte_input.setFixedWidth(80)
+            byte_input.setMinimumWidth(50)
+            byte_input.setMaximumWidth(85)
             byte_input.textChanged.connect(self.on_byte_changed)
             byte_widget_layout.addWidget(byte_input)
             
             self.byte_inputs.append(byte_input)
+            byte_widget.setMinimumWidth(50)
+            byte_widget.setMaximumWidth(85)
             bytes_layout.addWidget(byte_widget)
         
         self.byte_inputs[6].setReadOnly(True)
@@ -300,7 +307,8 @@ class ModbusTerminal(QMainWindow):
         
         top_splitter.addWidget(left_panel)
         top_splitter.addWidget(right_panel)
-        top_splitter.setSizes([350, 850])
+        top_splitter.setStretchFactor(0,1)
+        top_splitter.setStretchFactor(1,4)
         main_layout.addWidget(top_splitter)
         
         # Журнал событий
@@ -582,8 +590,6 @@ class ModbusTerminal(QMainWindow):
         config = SerialConfig(
             port=port,
             baudrate=baud,
-            parity="N",
-            stopbits=1
         )
 
         self.log(f"Подключение к {port} ({baud})...")
