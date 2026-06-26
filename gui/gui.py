@@ -35,6 +35,14 @@ class ModbusTerminal(QMainWindow):
         self.timer.timeout.connect(self.refresh_com_ports)
         self.timer.start(2000)
 
+        self.tx_timer = QTimer()
+        self.tx_timer.setSingleShot(True)
+        self.tx_timer.timeout.connect(self.turn_off_tx)
+
+        self.rx_timer = QTimer()
+        self.rx_timer.setSingleShot(True)
+        self.rx_timer.timeout.connect(self.turn_off_rx)
+
         self.connection_timer = QTimer()
         self.connection_timer.timeout.connect(self.update_connection_time)
         self.connection_start_time = None
@@ -113,6 +121,38 @@ class ModbusTerminal(QMainWindow):
         self.baud_combo.addItems(["9600", "19200", "38400", "115200", "230400"])
         self.baud_combo.setMinimumWidth(90)
         conn_layout.addWidget(self.baud_combo)
+
+        tx_rx_container = QWidget()
+        tx_rx_container.setStyleSheet("background: transparent; border: none;")
+        tx_rx_layout = QHBoxLayout(tx_rx_container)
+        tx_rx_layout.setContentsMargins(10, 0, 10, 0)
+        tx_rx_layout.setSpacing(10)
+
+        default_led_style = "border-radius: 6px; background-color: #9CA3AF; border: 1px solid #6B7280;"
+        # Индикатор TX
+        tx_layout = QHBoxLayout()
+        tx_layout.setSpacing(4)
+        self.tx_indicator = QLabel()
+        self.tx_indicator.setFixedSize(12, 12)
+        self.tx_indicator.setStyleSheet(default_led_style)
+        tx_label = QLabel("TX")
+        tx_label.setStyleSheet("font-size: 11px;")
+        tx_layout.addWidget(tx_label)
+        tx_layout.addWidget(self.tx_indicator)
+        tx_rx_layout.addLayout(tx_layout)
+
+        # Индикатор RX
+        rx_layout = QHBoxLayout()
+        rx_layout.setSpacing(4)
+        self.rx_indicator = QLabel()
+        self.rx_indicator.setFixedSize(12, 12)
+        self.rx_indicator.setStyleSheet(default_led_style)
+        rx_label = QLabel("RX")
+        rx_label.setStyleSheet("font-size: 11px;")
+        rx_layout.addWidget(rx_label)
+        rx_layout.addWidget(self.rx_indicator)
+        tx_rx_layout.addLayout(rx_layout)
+        conn_layout.addWidget(tx_rx_container)
         
         conn_layout.addStretch()
         
@@ -241,7 +281,7 @@ class ModbusTerminal(QMainWindow):
         right_panel.setObjectName("card")
         right_layout = QVBoxLayout(right_panel)
         right_layout.setSpacing(15)
-        right_layout.setContentsMargins(30, 70, 30, 30)
+        right_layout.setContentsMargins(30, 15, 15, 15)
         
         # Заголовок по центру
         header_widget = QWidget()
@@ -407,6 +447,21 @@ class ModbusTerminal(QMainWindow):
             return int(text, 16)
         except:
             return default
+        
+    
+    def flash_tx(self):
+        self.tx_indicator.setStyleSheet("border-radius: 6px; background-color: #10B981; border: 1px solid #047857;")
+        self.tx_timer.start(1500)
+    
+    def flash_rx(self):
+        self.rx_indicator.setStyleSheet("border-radius: 6px; background-color: #10B981; border: 1px solid #047857;")
+        self.rx_timer.start(450)
+
+    def turn_off_tx(self):
+        self.tx_indicator.setStyleSheet("border-radius: 6px; background-color: #9CA3AF; border: 1px solid #6B7280;")
+
+    def turn_off_rx(self):
+        self.rx_indicator.setStyleSheet("border-radius: 6px; background-color: #9CA3AF; border: 1px solid #6B7280;")
         
 
     def update_from_ui(self):
@@ -762,8 +817,13 @@ class ModbusTerminal(QMainWindow):
             count = self.get_int(self.read_count.text(), 8)
             self.log(f"Чтение: {self.modbus_engine.preview_request(slave_id=slave_id, function_code=3, address=address, value_or_count=count)}")
 
+            self.flash_tx()
+
             try:
                 result = self.modbus_engine.read_holding_registers(slave_id, address, count)
+
+                if result:
+                    self.flash_rx()
                 
                 registers = []
 
@@ -820,9 +880,13 @@ class ModbusTerminal(QMainWindow):
             value = self.get_int(self.write_data.text(), 0)
             self.log(f"Запись: {self.modbus_engine.preview_request(slave_id=slave_id, function_code=6, address=address, value_or_count=value)}")
 
+            self.flash_tx()
             try:
                 response = self.modbus_engine.write_single_register(slave_id, address, value)
                 self.log(f"Ответ: {response}")
+                
+                if response:
+                    self.flash_rx()
 
             except Exception as e:
                 self.log(f"Ошибка записи: {e}")
