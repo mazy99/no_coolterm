@@ -45,6 +45,11 @@ class ModbusTerminal(QMainWindow):
             ports = ModbusController.scan_serial_ports()
 
             current_text = self.port_combo.currentText()
+
+            if self.connected and (current_text not in ports):
+                self.log(f"Ошибка: порт {current_text} был физически отключен")
+                self.on_disconnect()
+                current_text = ""
             self.port_combo.clear()
 
             for port in ports:
@@ -559,7 +564,7 @@ class ModbusTerminal(QMainWindow):
                     # Данные записи (оставляем в HEX)
                     val = (data_h << 8) | data_l
                     self.write_data.blockSignals(True)
-                    self.write_data.setText(f"{val:04X}")
+                    self.write_data.setText(str(val))
                     self.write_data.blockSignals(False)
                 
                 cmd_index = 0 if cmd == 0x03 else 1
