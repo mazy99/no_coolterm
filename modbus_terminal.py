@@ -5,10 +5,11 @@ import ctypes
 from PyQt6.QtWidgets import QApplication
 from gui.gui import ModbusTerminal
 
+
 def main():
-    
+
     try:
-        myappid = 'mycompany.modbusterminal.nocoolterm.1.0'
+        myappid = "mycompany.modbusterminal.nocoolterm.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception as e:
         print(f"Не удалось установить AppUserModelID: {e}")
@@ -16,6 +17,7 @@ def main():
     window = ModbusTerminal()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()
