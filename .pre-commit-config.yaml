@@ -1,7 +1,7 @@
 default_stages: [pre-commit]
 
 repos:
-    # 1. Стандартные проверки для Git (отступы, переводы строк, крупные файлы)
+    # 1. Стандартные проверки для Git
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.6.0
       hooks:
@@ -10,14 +10,14 @@ repos:
         - id: trailing-whitespace
         - id: check-added-large-files
 
-    # 2. Главный инструмент — Ruff (он сделает и сортировку импортов, и линтинг, и форматирование)
+    # 2. Главный инструмент — Ruff
     - repo: https://github.com/astral-sh/ruff-pre-commit
       rev: v0.15.20
       hooks:
         - id: ruff
           args: [ --fix ]
         - id: ruff-format
-
+    # 3. Проверка типов с помощью mypy
     - repo: https://github.com/pre-commit/mirrors-mypy
       rev: v2.1.0
       hooks:

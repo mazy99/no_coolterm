@@ -1,36 +1,36 @@
 QMainWindow, QWidget {
                     background-color: #F2F4F7;
                 }
-                
+
                 QFrame#connFrame {
                     background-color: white;
                     border-radius: 12px;
                     border: 1px solid #E4E7EC;
                 }
-                
+
                 QFrame#card {
                     background-color: white;
                     border-radius: 12px;
                     border: 1px solid #E4E7EC;
                 }
-                
+
                 QFrame#logFrame {
                     background-color: white;
                     border-radius: 12px;
                     border: 1px solid #D1D5DB;
                 }
-                
+
                 QLabel {
                     color: #1A2C3E;
                     font-weight: 500;
                     font-size: 12px;
                     background-color: transparent;
                 }
-                
+
                 QWidget#headerWidget {
                     background-color: transparent;
                 }
-                
+
                 QLabel#headerLabel {
                     color: #1A2C3E;
                     font-weight: 600;
@@ -39,14 +39,14 @@ QMainWindow, QWidget {
                     padding: 6px 20px;
                     border-bottom: 2px solid #3B82F6;
                 }
-                
+
                 QLabel#byteLabel {
                     font-size: 11px;
                     color: #6B7280;
                     font-weight: 500;
                     background-color: transparent;
                 }
-                
+
                 QComboBox, QLineEdit {
                     background-color: white;
                     color: #1A2C3E;
@@ -56,22 +56,22 @@ QMainWindow, QWidget {
                     font-size: 12px;
                     font-family: 'Consolas', monospace;
                 }
-                
+
                 QComboBox:hover, QLineEdit:hover {
                     border-color: #9AA4B2;
                     background-color: #F9FAFB;
                 }
-                
+
                 QComboBox:focus, QLineEdit:focus {
                     border-color: #3B82F6;
                     outline: none;
                 }
-                
+
                 QComboBox::drop-down {
                     border: none;
                     width: 20px;
                 }
-                
+
                 QComboBox QAbstractItemView {
                     background-color: white;
                     color: #1A2C3E;
@@ -80,16 +80,16 @@ QMainWindow, QWidget {
                     selection-background-color: #EFF6FF;
                     selection-color: #1A2C3E;
                 }
-                
+
                 QComboBox QAbstractItemView::item {
                     padding: 6px;
                 }
-                
+
                 QPushButton:pressed {
                     padding-top: 2px;
                     padding-bottom: 2px;
                 }
-                
+
                 QPushButton#themeBtn {
                     background-color: #F3F4F6;
                     color: #374151;
@@ -102,7 +102,7 @@ QMainWindow, QWidget {
                 QPushButton#themeBtn:hover {
                     background-color: #E5E7EB;
                 }
-                
+
                 QPushButton#connectBtn {
                     background-color: #10B981;
                     color: white;
@@ -118,7 +118,7 @@ QMainWindow, QWidget {
                 QPushButton#connectBtn:disabled {
                     background-color: #9CA3AF;
                 }
-                
+
                 QPushButton#disconnectBtn {
                     background-color: #EF4444;
                     color: white;
@@ -134,7 +134,7 @@ QMainWindow, QWidget {
                 QPushButton#disconnectBtn:disabled {
                     background-color: #9CA3AF;
                 }
-                
+
                 QPushButton#sendBtn {
                     background-color: #3B82F6;
                     color: white;
@@ -149,7 +149,7 @@ QMainWindow, QWidget {
                 QPushButton#sendBtn:disabled {
                     background-color: #9CA3AF;
                 }
-                
+
                 QPushButton#clearBtn {
                     background-color: #F3F4F6;
                     color: #374151;
@@ -173,7 +173,7 @@ QMainWindow, QWidget {
                 QPushButton#saveLogBtn:hover {
                     background-color: #E5E7EB;
                 }
-                
+
                 QTextEdit {
                     background-color: #F9FAFB;
                     color: #1A2C3E;
@@ -182,7 +182,7 @@ QMainWindow, QWidget {
                     font-family: 'Consolas', monospace;
                     font-size: 13px;
                 }
-                
+
                 QScrollBar:vertical {
                     background-color: #F9FAFB;
                     width: 8px;
